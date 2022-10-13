@@ -5,13 +5,25 @@ python_version=$3
 build_binary_name=$4
 build_folder=$5
 openssl_version=$6
+mac_arch="$(uname -m)"
+openssl_config_arch=""
+
+if [ "$mac_arch" = "arm64" ]; then
+    openssl_config_arch="darwin64-arm64-cc"
+    export PATH=/usr/local/bin:$PATH
+elif [ "$mac_arch" = "x86_64" ]; then
+    openssl_config_arch="darwin64-x86_64-cc"
+else
+    echo "Invalid architecture found"
+    exit 1
+fi
 
 if [ "$python_library_zip_filename" = "" ]; then
     python_library_zip_filename="python-libraries.zip";
 fi
 
 if [ "$openssl_version" = "" ]; then
-    openssl_version="1.1.1d";
+    openssl_version="1.1.1r";
 fi
 
 if [ "$python_version" = "" ]; then
@@ -39,13 +51,11 @@ echo "Installing Openssl"
 curl -LO https://www.openssl.org/source/openssl-${openssl_version}.tar.gz
 tar -xzf openssl-${openssl_version}.tar.gz
 cd openssl-$openssl_version
-./Configure --prefix=/usr/local --openssldir=/usr/local/openssl no-ssl3 no-ssl3-method no-zlib darwin64-x86_64-cc enable-ec_nistp_64_gcc_128
+./Configure --prefix=/usr/local --openssldir=/usr/local/openssl no-ssl3 no-ssl3-method no-zlib ${openssl_config_arch} enable-ec_nistp_64_gcc_128
 
 make
-sudo make install # MANDIR=/usr/share/man MANSUFFIX=ssl
+sudo make install
 cd ..
-
-openssl version
 
 echo "Copying Source"
 cp -r ../[!.]* ./src
@@ -60,7 +70,7 @@ tar -xzf python.tgz
 cd Python-$python_version
 ./configure --enable-shared
 make -j8
-make install
+sudo make install
 cd ..
 
 echo "Installing Python Libraries"
@@ -108,7 +118,6 @@ cd ..
 cp -r src/pyinstaller-output/* output/pyinstaller-output
 
 echo "Packaging Binary"
-./venv/bin/pip install zip
 cd output
 cd pyinstaller-output
 cd dist
